@@ -1,6 +1,7 @@
 package dx
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -31,6 +32,12 @@ func cmdSyncRun(_ *cobra.Command, args []string) error {
 	}
 	currentBranchName = strings.TrimRight(currentBranchName, "\n")
 
+	if currentBranchName == syncBranch {
+		slog.Error("cannot sync branch with same branch", "current branch", currentBranchName,
+			"sync branch", syncBranch)
+		return errors.New("cannot sync branch with same branch")
+	}
+
 	currentCommits, err := getCommitsFromMainToBranchName(currentBranchName)
 	if err != nil {
 		return err
@@ -44,12 +51,13 @@ func cmdSyncRun(_ *cobra.Command, args []string) error {
 	if len(syncCommits) == 0 {
 		pendingCommitIndex = len(currentCommits) - 1
 	}
+	var appliedChangeIds []string
+	for _, c := range syncCommits {
+		appliedChangeIds = append(appliedChangeIds, c.ChangeIDs...)
+	}
 	for i, c := range currentCommits {
-		for _, syncc := range syncCommits {
-			if !slices.Contains(syncc.ChangeIDs, c.ChangeIDs[0]) {
-				pendingCommitIndex = i
-				break
-			}
+		if !slices.Contains(appliedChangeIds, c.ChangeIDs[0]) {
+			pendingCommitIndex = i
 		}
 	}
 	if pendingCommitIndex == -1 {
