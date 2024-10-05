@@ -56,7 +56,7 @@ func trun(t *testing.T, dir, command string, args ...string) string {
 	cmd := exec.Command(command, args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
-	require.NoError(t, err)
+	require.NoError(t, err, "got error: "+string(out))
 	return string(out)
 }
 
