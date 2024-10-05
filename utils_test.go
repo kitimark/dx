@@ -30,6 +30,8 @@ func newGitTest(t *testing.T) string {
 		}
 	})
 	trun(t, tmpdir, "git", "init")
+	trun(t, tmpdir, "git", "config", "--local", "user.name", "tester")
+	trun(t, tmpdir, "git", "config", "--local", "user.email", "tester@example.com")
 	trun(t, tmpdir, "git", "branch", "-M", "main")
 	twrite(t, tmpdir+"/file", "this is main")
 	trun(t, tmpdir, "git", "add", "file")
