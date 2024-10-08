@@ -17,7 +17,7 @@ func trunMainCommand(t *testing.T, args ...string) error {
 	return Main.Execute()
 }
 
-func newGitTest(t *testing.T) string {
+func newGitTest(t *testing.T) (string, string) {
 	t.Helper()
 	_, err := exec.LookPath("git")
 	require.NoError(t, err)
@@ -29,20 +29,30 @@ func newGitTest(t *testing.T) string {
 			panic(err)
 		}
 	})
-	trun(t, tmpdir, "git", "init")
-	trun(t, tmpdir, "git", "config", "--local", "user.name", "tester")
-	trun(t, tmpdir, "git", "config", "--local", "user.email", "tester@example.com")
-	trun(t, tmpdir, "git", "branch", "-M", "main")
-	twrite(t, tmpdir+"/file", "this is main")
-	trun(t, tmpdir, "git", "add", "file")
-	trun(t, tmpdir, "git", "commit", "-m", "initial commit")
 
-	trun(t, tmpdir, "git", "checkout", "-b", "dev")
-	trun(t, tmpdir, "git", "checkout", "main")
+	serverDir := tmpdir + "/server"
+	tmkdir(t, serverDir)
+	trun(t, serverDir, "git", "init")
+	trun(t, serverDir, "git", "config", "--local", "user.name", "tester")
+	trun(t, serverDir, "git", "config", "--local", "user.email", "tester@example.com")
+	trun(t, serverDir, "git", "branch", "-M", "main")
+	twrite(t, serverDir+"/file", "this is main")
+	trun(t, serverDir, "git", "add", "file")
+	trun(t, serverDir, "git", "commit", "-m", "initial commit")
+
+	trun(t, serverDir, "git", "checkout", "-b", "dev")
+	trun(t, serverDir, "git", "checkout", "main")
+
+	clientDir := tmpdir + "/client"
+	tmkdir(t, clientDir)
+	trun(t, clientDir, "git", "clone", serverDir+"/.git", ".")
+	trun(t, clientDir, "git", "fetch", "origin", "dev:dev")
+	trun(t, clientDir, "git", "config", "--local", "user.name", "tester")
+	trun(t, clientDir, "git", "config", "--local", "user.email", "tester@example.com")
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	err = os.Chdir(tmpdir)
+	err = os.Chdir(clientDir)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err = os.Chdir(wd)
@@ -50,7 +60,14 @@ func newGitTest(t *testing.T) string {
 			panic(err)
 		}
 	})
-	return tmpdir
+	return serverDir, clientDir
+}
+
+func tmkdir(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.Mkdir(dir, 0700); err != nil {
+		require.NoError(t, err)
+	}
 }
 
 func trun(t *testing.T, dir, command string, args ...string) string {

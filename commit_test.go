@@ -7,16 +7,16 @@ import (
 )
 
 func TestCommit(t *testing.T) {
-	tmpdir := newGitTest(t)
+	_, clientDir := newGitTest(t)
 
-	trun(t, tmpdir, "git", "checkout", "-b", "feature")
+	trun(t, clientDir, "git", "checkout", "-b", "feature")
 
-	twrite(t, tmpdir+"/content", "hello world")
-	trun(t, tmpdir, "git", "add", "content")
+	twrite(t, clientDir+"/content", "hello world")
+	trun(t, clientDir, "git", "add", "content")
 	err := trunMainCommand(t, "commit", "-m", "commit message")
 	assert.NoError(t, err)
 
-	out := trun(t, tmpdir, "git", "log")
+	out := trun(t, clientDir, "git", "log")
 	t.Log(out)
 	assert.Contains(t, out, "change-id", "after commit, missing change-id")
 }
