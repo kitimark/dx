@@ -99,7 +99,7 @@ func cmdSyncRun(_ *cobra.Command, args []string) error {
 		return err
 	}
 	commitLogs := "#commits\n"
-	for i := 0; i < pendingCommitIndex+1; i++ {
+	for i := pendingCommitIndex; i >= 0; i-- {
 		commitLogs += currentCommits[i].Message
 		commitLogs += "---\n"
 	}

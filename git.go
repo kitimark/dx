@@ -33,6 +33,8 @@ type Commit struct {
 	Hash      string
 	Message   string
 	ChangeIDs []string
+	// SubCommit is commits that squash into single command
+	// that contain all original commit detail sorted by create time asc
 	SubCommit []*Commit
 }
 
