@@ -44,8 +44,11 @@ func newGitTest(t *testing.T) (string, string) {
 	trun(t, serverDir, "git", "checkout", "main")
 
 	clientDir := tmpdir + "/client"
-	trun(t, tmpdir, "git", "clone", serverDir+"/.git", "client")
+	tmkdir(t, clientDir)
+	trun(t, clientDir, "git", "clone", serverDir+"/.git", ".")
 	trun(t, clientDir, "git", "fetch", "origin", "dev:dev")
+	trun(t, clientDir, "git", "config", "--local", "user.name", "tester")
+	trun(t, clientDir, "git", "config", "--local", "user.email", "tester@example.com")
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
