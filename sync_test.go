@@ -67,8 +67,10 @@ func TestSync_FeatureBranchOutdated(t *testing.T) {
 	t.Log("log:\n", out)
 	assert.Equal(t, "feature", tgetHeadBranch(t, tmpdir))
 	actualCommits := tgetCommits(t, tmpdir, "dev")
-	assert.Len(t, actualCommits[0].subCommit, 2, "sub commits count is invalid")
 	assert.Len(t, actualCommits[0].changeIds, 2, "change ids count is invalid")
+	assert.Len(t, actualCommits[0].subCommit, 2, "sub commits count is invalid")
+	assert.Equal(t, actualCommits[0].subCommit[0].short, "commit message")
+	assert.Equal(t, actualCommits[0].subCommit[1].short, "fix: update")
 	content := tread(t, tmpdir+"/content")
 	assert.Equal(t, "update", content, "merged content is invalid")
 }
