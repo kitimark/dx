@@ -7,8 +7,8 @@ import (
 )
 
 func TestDefaultBranchName(t *testing.T) {
-	tmpdir := newGitTest(t)
-	trun(t, tmpdir, "git", "checkout", "-b", "feature")
+	_, clientDir := newGitTest(t)
+	trun(t, clientDir, "git", "checkout", "-b", "feature")
 
 	err := gitInit()
 	assert.NoError(t, err)
