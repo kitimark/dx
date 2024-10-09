@@ -23,6 +23,8 @@ func newGitTest(t *testing.T) (string, string) {
 	require.NoError(t, err)
 	tmpdir, err := os.MkdirTemp("", "dx-test")
 	require.NoError(t, err)
+	err = os.Setenv("GIT_CONFIG_GLOBAL", tmpdir+"/git/config")
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		err = os.RemoveAll(tmpdir)
 		if err != nil {
@@ -126,10 +128,10 @@ func tparseCommits(t *testing.T, raw string) []*tcommit {
 			commits = append(commits, tparseLeafCommit(t, cmsg))
 			continue
 		}
-		cmsg = regexp.MustCompile("sync from (.*)\n\n#commits\n").
+		msg := regexp.MustCompile("sync from (.*)\n\n#commits\n").
 			ReplaceAllString(cmsg, "")
 		var sc []*tcommit
-		for _, c := range strings.Split(cmsg, "\n---\n") {
+		for _, c := range strings.Split(msg, "\n---\n") {
 			if c == "" {
 				continue
 			}
@@ -169,4 +171,13 @@ func tgetHeadBranch(t *testing.T, dir string) string {
 	t.Helper()
 	out := trun(t, dir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	return strings.TrimSpace(out)
+}
+
+func tgitLog(t *testing.T, dir string, branches ...string) {
+	t.Helper()
+	args := []string{"log", "--graph", "--decorate"}
+	args = append(args, branches...)
+	args = append(args, "--", ".")
+	out := trun(t, dir, "git", args...)
+	t.Log("log:\n", out)
 }

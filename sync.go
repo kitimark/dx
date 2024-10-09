@@ -33,11 +33,30 @@ func cmdSyncRun(_ *cobra.Command, args []string) error {
 	currentBranchName = strings.TrimRight(currentBranchName, "\n")
 
 	if currentBranchName == syncBranch {
-		slog.Error("cannot sync branch with same branch", "current branch", currentBranchName,
+		slog.Error("cannot sync branch with same branch", "current_branch", currentBranchName,
 			"sync branch", syncBranch)
 		return errors.New("cannot sync branch with same branch")
 	}
 
+	slog.Info("try to pull the sync branch", "branch", syncBranch)
+	_, err = execOutputErr("git", "fetch")
+	if err != nil {
+		return err
+	}
+	_, err = execOutputErr("git", "checkout", syncBranch)
+	if err != nil {
+		return err
+	}
+	_, err = execOutputErr("git", "reset", "--hard", "origin/"+syncBranch)
+	if err != nil {
+		return err
+	}
+	_, err = execOutputErr("git", "checkout", currentBranchName)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("syncing branch", "branch_to", syncBranch, "branch_from", currentBranchName)
 	currentCommits, err := getCommitsFromMainToBranchName(currentBranchName)
 	if err != nil {
 		return err
