@@ -56,15 +56,12 @@ func TestSync_FeatureBranchOutdated(t *testing.T) {
 	trun(t, clientDir, "git", "add", "content")
 	err = trunMainCommand(t, "commit", "-m", "fix: update")
 	require.NoError(t, err)
-
-	out := trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "main")
 
 	t.Log("testing sync dev")
 	err = trunMainCommand(t, "--debug", "sync", "dev")
 	assert.NoError(t, err)
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "dev", "main")
 	assert.Equal(t, "feature", tgetHeadBranch(t, clientDir))
 	actualCommits := tgetCommits(t, clientDir, "dev")
 	assert.Len(t, actualCommits[0].changeIds, 2, "change ids count is invalid")
@@ -104,9 +101,7 @@ func TestSync_MultipleSync(t *testing.T) {
 	trun(t, clientDir, "git", "add", "content")
 	err = trunMainCommand(t, "commit", "-m", "fix: update")
 	require.NoError(t, err)
-
-	out := trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "main")
 
 	t.Log("sync dev - 1")
 	err = trunMainCommand(t, "sync", "dev")
@@ -115,9 +110,7 @@ func TestSync_MultipleSync(t *testing.T) {
 
 	t.Log("push dev to origin")
 	trun(t, clientDir, "git", "push", "origin", "dev")
-
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "dev", "main")
 
 	t.Log("develop feature branch more")
 	tappend(t, clientDir+"/content", "fix bug\n")
@@ -128,8 +121,7 @@ func TestSync_MultipleSync(t *testing.T) {
 	t.Log("sync dev - 2")
 	err = trunMainCommand(t, "--debug", "sync", "dev")
 	require.NoError(t, err)
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "dev", "main")
 	assert.Equal(t, "feature", tgetHeadBranch(t, clientDir))
 	actualCommits := tgetCommits(t, clientDir, "dev")
 	assert.Len(t, actualCommits[0].subCommit, 1, "new sub commits count is invalid")
@@ -169,9 +161,7 @@ func TestSync_SyncWithAnotherCommitWithoutDX(t *testing.T) {
 	trun(t, clientDir, "git", "add", "content")
 	err = trunMainCommand(t, "commit", "-m", "fix: update")
 	require.NoError(t, err)
-
-	out := trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "main")
 
 	t.Log("client - sync dev - 1")
 	err = trunMainCommand(t, "sync", "dev")
@@ -193,15 +183,12 @@ func TestSync_SyncWithAnotherCommitWithoutDX(t *testing.T) {
 	trun(t, clientDir, "git", "add", "content")
 	err = trunMainCommand(t, "commit", "-m", "fix: fix bug")
 	require.NoError(t, err)
-
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "dev", "main")
 
 	t.Log("client - sync dev - 2")
 	err = trunMainCommand(t, "--debug", "sync", "dev")
 	require.NoError(t, err)
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "dev", "main")
 	assert.Equal(t, "feature", tgetHeadBranch(t, clientDir))
 	actualCommits := tgetCommits(t, clientDir, "dev")
 	assert.Len(t, actualCommits[0].subCommit, 1, "new sub commits count is invalid")
@@ -243,17 +230,12 @@ func TestSync_CompactNonPushCommits(t *testing.T) {
 	trun(t, clientDir, "git", "add", "content")
 	err = trunMainCommand(t, "commit", "-m", "fix: update")
 	require.NoError(t, err)
-
-	out := trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "main")
 
 	t.Log("sync dev - 1 without push to origin")
 	err = trunMainCommand(t, "sync", "dev")
 	require.NoError(t, err)
 	tgitLog(t, clientDir, "feature", "dev", "main")
-
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
 
 	t.Log("develop feature branch more")
 	tappend(t, clientDir+"/content", "fix bug\n")
@@ -264,8 +246,7 @@ func TestSync_CompactNonPushCommits(t *testing.T) {
 	t.Log("sync dev - 2 ")
 	err = trunMainCommand(t, "--debug", "sync", "dev")
 	require.NoError(t, err)
-	out = trun(t, clientDir, "git", "log", "--graph", "--decorate", "feature", "dev", "main")
-	t.Log("log:\n", out)
+	tgitLog(t, clientDir, "feature", "dev", "main")
 	assert.Equal(t, "feature", tgetHeadBranch(t, clientDir))
 	actualCommits := tgetCommits(t, clientDir, "dev")
 	assert.Equal(t, actualCommits[0].short, "sync from feature")

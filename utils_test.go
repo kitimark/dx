@@ -179,5 +179,5 @@ func tgitLog(t *testing.T, dir string, branches ...string) {
 	args = append(args, branches...)
 	args = append(args, "--", ".")
 	out := trun(t, dir, "git", args...)
-	t.Log("log:\n", out)
+	t.Log("git log:\n", out)
 }
