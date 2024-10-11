@@ -14,7 +14,7 @@ import (
 func trunMainCommand(t *testing.T, args ...string) error {
 	t.Helper()
 
-	t.Log("run dx:", "dx " + strings.Join(args, " "))
+	t.Log("run dx:", "dx "+strings.Join(args, " "))
 	cmd := NewMainCmd()
 	cmd.SetArgs(args)
 	return cmd.Execute()
