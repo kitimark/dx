@@ -12,10 +12,9 @@ import (
 )
 
 var CmdSync = &cobra.Command{
-	Use:     "sync [flags] <branch>",
-	Example: "sync dev",
-	Args:    cmdSyncArgs,
-	RunE:    cmdSyncRun,
+	Use:  "sync [flags] [--continue | branch]",
+	Args: cmdSyncArgs,
+	RunE: cmdSyncRun,
 }
 
 func init() {
@@ -41,10 +40,20 @@ func cmdSyncArgs(cmd *cobra.Command, args []string) error {
 }
 
 func cmdSyncRun(cmd *cobra.Command, args []string) error {
-	s, err := prepareSync(args)
-	if err != nil {
-		s.cleanup()
-		return err
+	var s *sync
+	flags := cmd.Flags()
+	con, err := flags.GetBool("continue")
+	if con {
+		s, err = prepareContinueSync()
+		if err != nil {
+			return err
+		}
+	} else {
+		s, err = prepareSync(args)
+		if err != nil {
+			s.cleanup()
+			return err
+		}
 	}
 	defer s.cleanup()
 
@@ -61,7 +70,7 @@ func cmdSyncRun(cmd *cobra.Command, args []string) error {
 			pendingCommitIndex = i
 		}
 	}
-	if pendingCommitIndex == -1 {
+	if !con && pendingCommitIndex == -1 {
 		slog.Info("no pending commits to sync")
 		return nil
 	}
@@ -95,6 +104,10 @@ hint: "dx sync --continue"
 		return err
 	}
 	commitLogs := "#commits\n"
+	for i := len(s.tmpSyncedCommits) - 1; i >= 0; i-- {
+		commitLogs += s.tmpSyncedCommits[i].Message
+		commitLogs += "---\n"
+	}
 	for i := pendingCommitIndex; i >= 0; i-- {
 		commitLogs += s.currentCommits[i].Message
 		commitLogs += "---\n"
@@ -114,7 +127,8 @@ type sync struct {
 	currentBranch  string
 	currentCommits []*Commit
 
-	tmpSyncBranch *tmpSyncBranch
+	tmpSyncBranch    *tmpSyncBranch
+	tmpSyncedCommits []*Commit
 
 	tdOpts     *teardownOpts
 	cleanupFns []func()
@@ -180,6 +194,53 @@ func prepareSync(args []string) (s *sync, err error) {
 	return
 }
 
+func prepareContinueSync() (s *sync, err error) {
+	tmpSyncBranchName, err := getCurrentBranchName()
+	if err != nil {
+		return
+	}
+	tmpSyncBranch, err := parseTempSyncBranch(tmpSyncBranchName)
+	if err != nil {
+		return
+	}
+	s = &sync{
+		currentBranch: tmpSyncBranch.from,
+		syncBranch:    tmpSyncBranch.to,
+		tdOpts:        &teardownOpts{},
+		tmpSyncBranch: tmpSyncBranch,
+	}
+	s.registerCleanup(func() {
+		if s.tdOpts.ignoreSwitchBranchBack {
+			return
+		}
+		out, err := execOutputErr("git", "checkout", s.currentBranch)
+		if err != nil {
+			slog.Warn("cannot checkout branch", "branch", s.currentBranch, "output", out, "error", err)
+		}
+	})
+
+	slog.Info("continue syncing branch", "branch_to", s.syncBranch, "branch_from", s.currentBranch)
+	_, err = execOutputErr("git", "-c", "core.editor=true", "cherry-pick", "--continue")
+	if err != nil {
+		return
+	}
+	s.currentCommits, err = getCommitsFromMainToBranchName(s.currentBranch)
+	if err != nil {
+		return
+	}
+	s.syncedCommits, err = getCommitsFromMainToBranchName(s.tmpSyncBranch.name)
+	if err != nil {
+		return
+	}
+	s.tmpSyncedCommits, err = getCommit(s.tmpSyncBranch.name, s.syncBranch)
+	if err != nil {
+		return
+	}
+
+	s.registerCleanup(s.tmpSyncBranch.cleanup)
+	return
+}
+
 func getCurrentBranchName() (string, error) {
 	currentBranchName, err := execOutputErr("git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
@@ -216,6 +277,15 @@ func resetBranchFromOrigin(syncBranch string) error {
 func getCommitsFromMainToBranchName(branchName string) ([]*Commit, error) {
 	out, err := execOutputErr("git", "log", "--format=format:%H%x00%B%x00",
 		mainBranchName+".."+branchName)
+	if err != nil {
+		return nil, fmt.Errorf("got error during execute: %s: %w", out, err)
+	}
+	return parseCommits(out), nil
+}
+
+func getCommit(headBranch, baseBranch string) ([]*Commit, error) {
+	out, err := execOutputErr("git", "log", "--format=format:%H%x00%B%x00",
+		baseBranch+".."+headBranch)
 	if err != nil {
 		return nil, fmt.Errorf("got error during execute: %s: %w", out, err)
 	}
@@ -261,6 +331,26 @@ func newTempSyncBranch(from, to string) (*tmpSyncBranch, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+func parseTempSyncBranch(tmpBranch string) (*tmpSyncBranch, error) {
+	if !strings.HasPrefix(tmpBranch, "tmp-sync-") {
+		return nil, errors.New("invalid temp branch")
+	}
+	data := strings.Split(tmpBranch[len("tmp-sync-"):], "-")
+	to, err := b32de(data[0])
+	if err != nil {
+		return nil, err
+	}
+	from, err := b32de(data[1])
+	if err != nil {
+		return nil, err
+	}
+	return &tmpSyncBranch{
+		name: tmpBranch,
+		from: from,
+		to:   to,
+	}, nil
 }
 
 func (b *tmpSyncBranch) cleanup() {

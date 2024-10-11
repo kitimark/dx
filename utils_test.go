@@ -207,3 +207,15 @@ func tgetBranchList(t *testing.T, dir, pattern string) string {
 func assertNormalTeardown(t *testing.T, dir string) {
 	assertNoBranch(t, dir, "tmp-sync*")
 }
+
+func removeConflictAnnotate(t *testing.T, content string) string {
+	t.Helper()
+	re := regexp.MustCompile("(<<<<<<<|=======|>>>>>>>)(.*)")
+	var result []string
+	for _, line := range strings.Split(content, "\n") {
+		if !re.MatchString(line) {
+			result = append(result, line)
+		}
+	}
+	return strings.Join(result, "\n")
+}
