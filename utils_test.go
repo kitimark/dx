@@ -1,6 +1,7 @@
 package dx
 
 import (
+	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"regexp"
@@ -176,8 +177,29 @@ func tgetHeadBranch(t *testing.T, dir string) string {
 func tgitLog(t *testing.T, dir string, branches ...string) {
 	t.Helper()
 	args := []string{"log", "--graph", "--decorate"}
-	args = append(args, branches...)
-	args = append(args, "--", ".")
+	if len(branches) == 0 {
+		args = append(args, "--all")
+	} else {
+		args = append(args, branches...)
+		args = append(args, "--", ".")
+	}
 	out := trun(t, dir, "git", args...)
 	t.Log("git log:\n", out)
+}
+
+func assertNoBranch(t *testing.T, dir, pattern string) {
+	t.Helper()
+	out := tgetBranchList(t, dir, pattern)
+	assert.Empty(t, out)
+}
+
+func assertBranchExist(t *testing.T, dir, pattern string) {
+	t.Helper()
+	out := tgetBranchList(t, dir, pattern)
+	assert.NotEmpty(t, out)
+}
+
+func tgetBranchList(t *testing.T, dir, pattern string) string {
+	out := trun(t, dir, "git", "branch", "--list", pattern)
+	return out
 }

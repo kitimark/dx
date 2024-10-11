@@ -18,7 +18,8 @@ func TestSync(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Log("testing sync dev")
-	err = trunMainCommand(t, "sync", "dev")
+	err = trunMainCommand(t, "--debug", "sync", "dev")
+	tgitLog(t, clientDir)
 	assert.NoError(t, err)
 	assert.Equal(t, "feature", tgetHeadBranch(t, clientDir))
 	actualCommits := tgetCommits(t, clientDir, "dev")
@@ -26,6 +27,7 @@ func TestSync(t *testing.T) {
 	assert.Len(t, actualCommits[0].changeIds, 1, "change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "hello world", content, "merged content is invalid")
+	assertNoBranch(t, clientDir, "tmp-sync*")
 }
 
 func TestSync_FeatureBranchOutdated(t *testing.T) {
@@ -282,4 +284,27 @@ func TestSync_PullSyncBranchBeforeSync(t *testing.T) {
 	assert.Len(t, actualCommits, 3)
 	assert.Equal(t, actualCommits[0].short, "sync from client_feature1")
 	assert.Equal(t, actualCommits[1].short, "feat: server feature 1")
+}
+
+func TestSync_CodeConflict(t *testing.T) {
+	serverDir, clientDir := newGitTest(t)
+
+	t.Log("server: make commit is git server")
+	trun(t, serverDir, "git", "checkout", "dev")
+	twrite(t, serverDir+"/main", "srv_feature1")
+	trun(t, serverDir, "git", "add", "main")
+	trun(t, serverDir, "git", "commit", "-m", "feat: server feature 1")
+
+	t.Log("client: develop feature branch")
+	trun(t, clientDir, "git", "checkout", "-b", "client_feature1")
+	twrite(t, clientDir+"/main", "client_feature1")
+	trun(t, clientDir, "git", "add", "main")
+	err := trunMainCommand(t, "commit", "-m", "feat: client feature 1")
+	require.NoError(t, err)
+
+	err = trunMainCommand(t, "--debug", "sync", "dev")
+	require.ErrorContains(t, err, "code conflict")
+	assertBranchExist(t, clientDir, "tmp-sync*")
+	out := tread(t, clientDir+"/main")
+	t.Log("file:\n", out)
 }
