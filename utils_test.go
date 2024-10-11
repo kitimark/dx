@@ -203,3 +203,7 @@ func tgetBranchList(t *testing.T, dir, pattern string) string {
 	out := trun(t, dir, "git", "branch", "--list", pattern)
 	return out
 }
+
+func assertNormalTeardown(t *testing.T, dir string) {
+	assertNoBranch(t, dir, "tmp-sync*")
+}

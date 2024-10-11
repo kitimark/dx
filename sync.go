@@ -41,59 +41,22 @@ func cmdSyncArgs(cmd *cobra.Command, args []string) error {
 }
 
 func cmdSyncRun(cmd *cobra.Command, args []string) error {
-	tdOpts := &teardownOpts{}
-
-	syncBranch := args[0]
-	currentBranchName, err := getCurrentBranchName()
+	s, err := prepareSync(args)
 	if err != nil {
+		s.cleanup()
 		return err
 	}
-	defer func() {
-		if tdOpts.ignoreSwitchBranchBack {
-			return
-		}
-		out, err := execOutputErr("git", "checkout", currentBranchName)
-		if err != nil {
-			slog.Warn("cannot checkout branch", "branch", currentBranchName, "output", out, "error", err)
-		}
-	}()
-
-	if currentBranchName == syncBranch {
-		slog.Error("cannot sync branch with same branch", "current_branch", currentBranchName,
-			"sync branch", syncBranch)
-		return errors.New("cannot sync branch with same branch")
-	}
-
-	err = resetBranchFromOrigin(syncBranch)
-	if err != nil {
-		return err
-	}
-
-	slog.Info("syncing branch", "branch_to", syncBranch, "branch_from", currentBranchName)
-	currentCommits, err := getCommitsFromMainToBranchName(currentBranchName)
-	if err != nil {
-		return err
-	}
-	syncedCommits, err := getCommitsFromMainToBranchName(syncBranch)
-	if err != nil {
-		return err
-	}
-
-	tmpBranch, err := newTempSyncBranch(currentBranchName, syncBranch)
-	if err != nil {
-		return err
-	}
-	defer tmpBranch.cleanup()
+	defer s.cleanup()
 
 	pendingCommitIndex := -1
-	if len(syncedCommits) == 0 {
-		pendingCommitIndex = len(currentCommits) - 1
+	if len(s.syncedCommits) == 0 {
+		pendingCommitIndex = len(s.currentCommits) - 1
 	}
 	var appliedChangeIds []string
-	for _, c := range syncedCommits {
+	for _, c := range s.syncedCommits {
 		appliedChangeIds = append(appliedChangeIds, c.ChangeIDs...)
 	}
-	for i, c := range currentCommits {
+	for i, c := range s.currentCommits {
 		if !slices.Contains(appliedChangeIds, c.ChangeIDs[0]) {
 			pendingCommitIndex = i
 		}
@@ -106,16 +69,16 @@ func cmdSyncRun(cmd *cobra.Command, args []string) error {
 	slog.Info("pending commit", "first", pendingCommitIndex, "last", 0)
 
 	for i := pendingCommitIndex; i >= 0; i-- {
-		out, err := execOutputErr("git", "cherry-pick", currentCommits[i].Hash)
+		out, err := execOutputErr("git", "cherry-pick", s.currentCommits[i].Hash)
 		if err != nil {
 			if isCodeConflict(out) {
 				fmt.Printf(fmt.Sprintf(`CONFLICT: syncing commit to %s
 hint: After resolving the conflicts, mark them with
 hint: "git add/rm <pathspec>"
 hint: "dx sync --continue"
-`, syncBranch))
-				tdOpts.ignoreSwitchBranchBack = true
-				tmpBranch.ignoreCleanup = true
+`, s.syncBranch))
+				s.tdOpts.ignoreSwitchBranchBack = true
+				s.tmpSyncBranch.ignoreCleanup = true
 				cmd.SilenceUsage = true
 				return errors.New("code conflict")
 			}
@@ -123,20 +86,20 @@ hint: "dx sync --continue"
 		}
 	}
 
-	_, err = execOutputErr("git", "checkout", syncBranch)
+	_, err = execOutputErr("git", "checkout", s.syncBranch)
 	if err != nil {
 		return err
 	}
-	_, err = execOutputErr("git", "merge", "--squash", tmpBranch.name)
+	_, err = execOutputErr("git", "merge", "--squash", s.tmpSyncBranch.name)
 	if err != nil {
 		return err
 	}
 	commitLogs := "#commits\n"
 	for i := pendingCommitIndex; i >= 0; i-- {
-		commitLogs += currentCommits[i].Message
+		commitLogs += s.currentCommits[i].Message
 		commitLogs += "---\n"
 	}
-	_, err = execOutputErr("git", "commit", "-m", "sync from "+currentBranchName, "-m", commitLogs)
+	_, err = execOutputErr("git", "commit", "-m", "sync from "+s.currentBranch, "-m", commitLogs)
 	if err != nil {
 		return err
 	}
@@ -165,6 +128,56 @@ func (s *sync) cleanup() {
 	for i := len(s.cleanupFns) - 1; i >= 0; i-- {
 		s.cleanupFns[i]()
 	}
+}
+
+func prepareSync(args []string) (s *sync, err error) {
+	s = &sync{
+		tdOpts: &teardownOpts{},
+	}
+
+	s.syncBranch = args[0]
+	s.currentBranch, err = getCurrentBranchName()
+	if err != nil {
+		return
+	}
+	s.registerCleanup(func() {
+		if s.tdOpts.ignoreSwitchBranchBack {
+			return
+		}
+		out, err := execOutputErr("git", "checkout", s.currentBranch)
+		if err != nil {
+			slog.Warn("cannot checkout branch", "branch", s.currentBranch, "output", out, "error", err)
+		}
+	})
+
+	if s.currentBranch == s.syncBranch {
+		slog.Error("cannot sync branch with same branch", "current_branch", s.currentBranch,
+			"sync branch", s.syncBranch)
+		err = errors.New("cannot sync branch with same branch")
+		return
+	}
+
+	err = resetBranchFromOrigin(s.syncBranch)
+	if err != nil {
+		return
+	}
+
+	slog.Info("syncing branch", "branch_to", s.syncBranch, "branch_from", s.currentBranch)
+	s.currentCommits, err = getCommitsFromMainToBranchName(s.currentBranch)
+	if err != nil {
+		return
+	}
+	s.syncedCommits, err = getCommitsFromMainToBranchName(s.syncBranch)
+	if err != nil {
+		return
+	}
+
+	s.tmpSyncBranch, err = newTempSyncBranch(s.currentBranch, s.syncBranch)
+	if err != nil {
+		return
+	}
+	s.registerCleanup(s.tmpSyncBranch.cleanup)
+	return
 }
 
 func getCurrentBranchName() (string, error) {

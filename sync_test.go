@@ -27,7 +27,7 @@ func TestSync(t *testing.T) {
 	assert.Len(t, actualCommits[0].changeIds, 1, "change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "hello world", content, "merged content is invalid")
-	assertNoBranch(t, clientDir, "tmp-sync*")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_FeatureBranchOutdated(t *testing.T) {
@@ -72,6 +72,7 @@ func TestSync_FeatureBranchOutdated(t *testing.T) {
 	assert.Equal(t, actualCommits[0].subCommit[1].short, "fix: update")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_MultipleSync(t *testing.T) {
@@ -132,6 +133,7 @@ func TestSync_MultipleSync(t *testing.T) {
 	assert.Len(t, actualCommits[1].changeIds, 2, "old change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update\nfix bug\n", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_SyncWithAnotherCommitWithoutDX(t *testing.T) {
@@ -201,6 +203,7 @@ func TestSync_SyncWithAnotherCommitWithoutDX(t *testing.T) {
 	assert.Len(t, actualCommits[2].changeIds, 2, "old change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update\nfix bug\n", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_CompactNonPushCommits(t *testing.T) {
@@ -256,6 +259,7 @@ func TestSync_CompactNonPushCommits(t *testing.T) {
 	assert.Len(t, actualCommits[0].changeIds, 3, "new change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update\nfix bug\n", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_PullSyncBranchBeforeSync(t *testing.T) {
@@ -284,6 +288,7 @@ func TestSync_PullSyncBranchBeforeSync(t *testing.T) {
 	assert.Len(t, actualCommits, 3)
 	assert.Equal(t, actualCommits[0].short, "sync from client_feature1")
 	assert.Equal(t, actualCommits[1].short, "feat: server feature 1")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_CodeConflict(t *testing.T) {
