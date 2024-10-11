@@ -14,8 +14,10 @@ import (
 func trunMainCommand(t *testing.T, args ...string) error {
 	t.Helper()
 
-	os.Args = append([]string{Main.CommandPath()}, args...)
-	return Main.Execute()
+	t.Log("run dx:", "dx " + strings.Join(args, " "))
+	cmd := NewMainCmd()
+	cmd.SetArgs(args)
+	return cmd.Execute()
 }
 
 func newGitTest(t *testing.T) (string, string) {

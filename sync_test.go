@@ -332,6 +332,7 @@ func TestSync_CodeConflict(t *testing.T) {
 	assert.Len(t, actualCommits[0].changeIds, 1)
 	assert.Len(t, actualCommits[0].subCommit, 1)
 	assert.Equal(t, actualCommits[0].subCommit[0].short, "feat: client feature 1")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_CodeMultipleConflict(t *testing.T) {
@@ -358,7 +359,7 @@ func TestSync_CodeMultipleConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Log("client: try to sync")
-	err = trunMainCommand(t, "--debug", "sync", "dev")
+	err = trunMainCommand(t, "sync", "dev")
 	require.ErrorContains(t, err, "code conflict")
 	assertBranchExist(t, clientDir, "tmp-sync*")
 	out := tread(t, clientDir+"/main")
@@ -398,4 +399,5 @@ func TestSync_CodeMultipleConflict(t *testing.T) {
 	assert.Len(t, actualCommits[0].subCommit, 2)
 	assert.Equal(t, actualCommits[0].subCommit[0].short, "feat: client feature 1")
 	assert.Equal(t, actualCommits[0].subCommit[1].short, "feat(lib): update lib")
+	assertNormalTeardown(t, clientDir)
 }

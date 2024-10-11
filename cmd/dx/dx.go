@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	err := dx.Main.Execute()
+	cmd := dx.NewMainCmd()
+	err := cmd.Execute()
 	if err != nil {
 		slog.Info(err.Error())
 		os.Exit(2)

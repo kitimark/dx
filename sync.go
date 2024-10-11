@@ -11,14 +11,16 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-var CmdSync = &cobra.Command{
-	Use:  "sync [flags] [--continue | branch]",
-	Args: cmdSyncArgs,
-	RunE: cmdSyncRun,
-}
+func NewSyncCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:  "sync [flags] [--continue | branch]",
+		Args: cmdSyncArgs,
+		RunE: cmdSyncRun,
+	}
 
-func init() {
-	CmdSync.PersistentFlags().Bool("continue", false, "continue sync commits")
+	cmd.PersistentFlags().Bool("continue", false, "continue sync commits")
+
+	return cmd
 }
 
 func cmdSyncArgs(cmd *cobra.Command, args []string) error {

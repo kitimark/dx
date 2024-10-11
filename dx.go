@@ -6,15 +6,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var Main = &cobra.Command{
-	Use:               "dx [flags] [command]",
-	PersistentPreRunE: cmdMainPreRun,
-}
+func NewMainCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "dx [flags] [command]",
+		PersistentPreRunE: cmdMainPreRun,
+	}
 
-func init() {
-	Main.PersistentFlags().BoolP("debug", "d", false, "print debug info")
-	Main.AddCommand(CmdCommit)
-	Main.AddCommand(CmdSync)
+	cmd.PersistentFlags().BoolP("debug", "d", false, "print debug info")
+
+	cmd.AddCommand(NewCommitCmd())
+	cmd.AddCommand(NewSyncCmd())
+
+	return cmd
 }
 
 func cmdMainPreRun(cmd *cobra.Command, _ []string) error {

@@ -8,19 +8,21 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-var CmdCommit = &cobra.Command{
-	Use:     "commit [flags]",
-	Example: "commit -m \"commit message\"",
-	Args:    cobra.NoArgs,
-	RunE:    cmdCommitRun,
-}
+func NewCommitCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "commit [flags]",
+		Example: "commit -m \"commit message\"",
+		Args:    cobra.NoArgs,
+		RunE:    cmdCommitRun,
+	}
 
-func init() {
-	CmdCommit.PersistentFlags().StringP("message", "m", "", "message")
-	err := CmdCommit.MarkPersistentFlagRequired("message")
+	cmd.PersistentFlags().StringP("message", "m", "", "message")
+	err := cmd.MarkPersistentFlagRequired("message")
 	if err != nil {
 		panic(err)
 	}
+
+	return cmd
 }
 
 func cmdCommitRun(cmd *cobra.Command, _ []string) error {
