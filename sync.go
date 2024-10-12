@@ -83,11 +83,11 @@ func cmdSyncRun(cmd *cobra.Command, args []string) error {
 		out, err := execOutputErr("git", "cherry-pick", s.currentCommits[i].Hash)
 		if err != nil {
 			if isCodeConflict(out) {
-				fmt.Printf(fmt.Sprintf(`CONFLICT: syncing commit to %s
+				fmt.Printf(`CONFLICT: syncing commit to %s
 hint: After resolving the conflicts, mark them with
 hint: "git add/rm <pathspec>"
 hint: "dx sync --continue"
-`, s.syncBranch))
+`, s.syncBranch)
 				s.tdOpts.ignoreSwitchBranchBack = true
 				s.tmpSyncBranch.ignoreCleanup = true
 				cmd.SilenceUsage = true
