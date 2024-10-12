@@ -18,7 +18,8 @@ func TestSync(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Log("testing sync dev")
-	err = trunMainCommand(t, "sync", "dev")
+	err = trunMainCommand(t, "--debug", "sync", "dev")
+	tgitLog(t, clientDir)
 	assert.NoError(t, err)
 	assert.Equal(t, "feature", tgetHeadBranch(t, clientDir))
 	actualCommits := tgetCommits(t, clientDir, "dev")
@@ -26,6 +27,7 @@ func TestSync(t *testing.T) {
 	assert.Len(t, actualCommits[0].changeIds, 1, "change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "hello world", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_FeatureBranchOutdated(t *testing.T) {
@@ -70,6 +72,7 @@ func TestSync_FeatureBranchOutdated(t *testing.T) {
 	assert.Equal(t, actualCommits[0].subCommit[1].short, "fix: update")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_MultipleSync(t *testing.T) {
@@ -130,6 +133,7 @@ func TestSync_MultipleSync(t *testing.T) {
 	assert.Len(t, actualCommits[1].changeIds, 2, "old change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update\nfix bug\n", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_SyncWithAnotherCommitWithoutDX(t *testing.T) {
@@ -199,6 +203,7 @@ func TestSync_SyncWithAnotherCommitWithoutDX(t *testing.T) {
 	assert.Len(t, actualCommits[2].changeIds, 2, "old change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update\nfix bug\n", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_CompactNonPushCommits(t *testing.T) {
@@ -254,6 +259,7 @@ func TestSync_CompactNonPushCommits(t *testing.T) {
 	assert.Len(t, actualCommits[0].changeIds, 3, "new change ids count is invalid")
 	content := tread(t, clientDir+"/content")
 	assert.Equal(t, "update\nfix bug\n", content, "merged content is invalid")
+	assertNormalTeardown(t, clientDir)
 }
 
 func TestSync_PullSyncBranchBeforeSync(t *testing.T) {
@@ -282,4 +288,116 @@ func TestSync_PullSyncBranchBeforeSync(t *testing.T) {
 	assert.Len(t, actualCommits, 3)
 	assert.Equal(t, actualCommits[0].short, "sync from client_feature1")
 	assert.Equal(t, actualCommits[1].short, "feat: server feature 1")
+	assertNormalTeardown(t, clientDir)
+}
+
+func TestSync_CodeConflict(t *testing.T) {
+	serverDir, clientDir := newGitTest(t)
+
+	t.Log("server: make commit is git server")
+	trun(t, serverDir, "git", "checkout", "dev")
+	twrite(t, serverDir+"/main", "srv_feature1\n")
+	trun(t, serverDir, "git", "add", "main")
+	trun(t, serverDir, "git", "commit", "-m", "feat: server feature 1")
+
+	t.Log("client: develop feature branch")
+	trun(t, clientDir, "git", "checkout", "-b", "client_feature1")
+	twrite(t, clientDir+"/main", "client_feature1\n")
+	trun(t, clientDir, "git", "add", "main")
+	err := trunMainCommand(t, "commit", "-m", "feat: client feature 1")
+	require.NoError(t, err)
+
+	t.Log("client: try to sync")
+	err = trunMainCommand(t, "--debug", "sync", "dev")
+	require.ErrorContains(t, err, "code conflict")
+	tgitLog(t, clientDir)
+	assertBranchExist(t, clientDir, "tmp-sync*")
+	out := tread(t, clientDir+"/main")
+	t.Log("conflict content:\n", out)
+
+	t.Log("client: resolve conflict")
+	out = removeConflictAnnotate(t, out)
+	t.Log("resolved content:\n", out)
+	twrite(t, clientDir+"/main", out)
+	trun(t, clientDir, "git", "add", "main")
+	err = trunMainCommand(t, "--debug", "sync", "--continue")
+	tgitLog(t, clientDir)
+	require.NoError(t, err)
+	content := tread(t, clientDir+"/main")
+	assert.Equal(t, "client_feature1\n", content, "original content is invalid")
+	trun(t, clientDir, "git", "checkout", "dev")
+	content = tread(t, clientDir+"/main")
+	assert.Equal(t, "srv_feature1\nclient_feature1\n", content, "merged content is invalid")
+	actualCommits := tgetCommits(t, clientDir, "dev")
+	assert.Len(t, actualCommits[0].changeIds, 1)
+	assert.Len(t, actualCommits[0].subCommit, 1)
+	assert.Equal(t, actualCommits[0].subCommit[0].short, "feat: client feature 1")
+	assertNormalTeardown(t, clientDir)
+}
+
+func TestSync_CodeMultipleConflict(t *testing.T) {
+	serverDir, clientDir := newGitTest(t)
+
+	t.Log("server: make commit is git server")
+	trun(t, serverDir, "git", "checkout", "dev")
+	twrite(t, serverDir+"/main", "srv_feature1\n")
+	twrite(t, serverDir+"/lib", "lib_feature1\n")
+	trun(t, serverDir, "git", "add", "main", "lib")
+	trun(t, serverDir, "git", "commit", "-m", "feat: server feature 1")
+
+	t.Log("client: develop feature branch - 1")
+	trun(t, clientDir, "git", "checkout", "-b", "client_feature1")
+	twrite(t, clientDir+"/main", "client_feature1\n")
+	trun(t, clientDir, "git", "add", "main")
+	err := trunMainCommand(t, "commit", "-m", "feat: client feature 1")
+	require.NoError(t, err)
+
+	t.Log("client: develop feature branch - 2")
+	twrite(t, clientDir+"/lib", "lib_client_feature1\n")
+	trun(t, clientDir, "git", "add", "lib")
+	err = trunMainCommand(t, "commit", "-m", "feat(lib): update lib")
+	require.NoError(t, err)
+
+	t.Log("client: try to sync")
+	err = trunMainCommand(t, "sync", "dev")
+	require.ErrorContains(t, err, "code conflict")
+	assertBranchExist(t, clientDir, "tmp-sync*")
+	out := tread(t, clientDir+"/main")
+	t.Log("conflict content:\n", out)
+
+	t.Log("client: resolve conflict - 1")
+	out = removeConflictAnnotate(t, out)
+	t.Log("resolved content:\n", out)
+	twrite(t, clientDir+"/main", out)
+	trun(t, clientDir, "git", "add", "main")
+	err = trunMainCommand(t, "--debug", "sync", "--continue")
+	require.ErrorContains(t, err, "code conflict")
+	tgitLog(t, clientDir)
+
+	out = tread(t, clientDir+"/lib")
+	t.Log("conflict content:\n", out)
+
+	t.Log("client: resolve conflict - 2")
+	out = removeConflictAnnotate(t, out)
+	t.Log("resolved content:\n", out)
+	twrite(t, clientDir+"/lib", out)
+	trun(t, clientDir, "git", "add", "lib")
+	err = trunMainCommand(t, "--debug", "sync", "--continue")
+	tgitLog(t, clientDir)
+	require.NoError(t, err)
+	content := tread(t, clientDir+"/main")
+	assert.Equal(t, "client_feature1\n", content, "original main content is invalid")
+	content = tread(t, clientDir+"/lib")
+	assert.Equal(t, "lib_client_feature1\n", content, "original lib content is invalid")
+	trun(t, clientDir, "git", "checkout", "dev")
+	content = tread(t, clientDir+"/main")
+	assert.Equal(t, "srv_feature1\nclient_feature1\n", content, "merged main content is invalid")
+	content = tread(t, clientDir+"/lib")
+	assert.Equal(t, "lib_feature1\nlib_client_feature1\n", content, "merged lib content is invalid")
+	actualCommits := tgetCommits(t, clientDir, "dev")
+	assert.Len(t, actualCommits[0].changeIds, 2)
+	assert.Len(t, actualCommits[0].subCommit, 2)
+	assert.Equal(t, actualCommits[0].subCommit[0].short, "feat: client feature 1")
+	assert.Equal(t, actualCommits[0].subCommit[1].short, "feat(lib): update lib")
+	assertNormalTeardown(t, clientDir)
 }

@@ -1,6 +1,7 @@
 package dx
 
 import (
+	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"regexp"
@@ -13,8 +14,10 @@ import (
 func trunMainCommand(t *testing.T, args ...string) error {
 	t.Helper()
 
-	os.Args = append([]string{Main.CommandPath()}, args...)
-	return Main.Execute()
+	t.Log("run dx:", "dx "+strings.Join(args, " "))
+	cmd := NewMainCmd()
+	cmd.SetArgs(args)
+	return cmd.Execute()
 }
 
 func newGitTest(t *testing.T) (string, string) {
@@ -176,8 +179,45 @@ func tgetHeadBranch(t *testing.T, dir string) string {
 func tgitLog(t *testing.T, dir string, branches ...string) {
 	t.Helper()
 	args := []string{"log", "--graph", "--decorate"}
-	args = append(args, branches...)
-	args = append(args, "--", ".")
+	if len(branches) == 0 {
+		args = append(args, "--all")
+	} else {
+		args = append(args, branches...)
+		args = append(args, "--", ".")
+	}
 	out := trun(t, dir, "git", args...)
 	t.Log("git log:\n", out)
+}
+
+func assertNoBranch(t *testing.T, dir, pattern string) {
+	t.Helper()
+	out := tgetBranchList(t, dir, pattern)
+	assert.Empty(t, out)
+}
+
+func assertBranchExist(t *testing.T, dir, pattern string) {
+	t.Helper()
+	out := tgetBranchList(t, dir, pattern)
+	assert.NotEmpty(t, out)
+}
+
+func tgetBranchList(t *testing.T, dir, pattern string) string {
+	out := trun(t, dir, "git", "branch", "--list", pattern)
+	return out
+}
+
+func assertNormalTeardown(t *testing.T, dir string) {
+	assertNoBranch(t, dir, "tmp-sync*")
+}
+
+func removeConflictAnnotate(t *testing.T, content string) string {
+	t.Helper()
+	re := regexp.MustCompile("(<<<<<<<|=======|>>>>>>>)(.*)")
+	var result []string
+	for _, line := range strings.Split(content, "\n") {
+		if !re.MatchString(line) {
+			result = append(result, line)
+		}
+	}
+	return strings.Join(result, "\n")
 }
