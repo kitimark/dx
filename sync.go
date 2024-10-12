@@ -234,7 +234,7 @@ func prepareContinueSync() (s *sync, err error) {
 	if err != nil {
 		return
 	}
-	s.tmpSyncedCommits, err = getCommit(s.tmpSyncBranch.name, s.syncBranch)
+	s.tmpSyncedCommits, err = getCommits(s.tmpSyncBranch.name, s.syncBranch)
 	if err != nil {
 		return
 	}
@@ -277,15 +277,14 @@ func resetBranchFromOrigin(syncBranch string) error {
 }
 
 func getCommitsFromMainToBranchName(branchName string) ([]*Commit, error) {
-	out, err := execOutputErr("git", "log", "--format=format:%H%x00%B%x00",
-		mainBranchName+".."+branchName)
+	commits, err := getCommits(branchName, mainBranchName)
 	if err != nil {
-		return nil, fmt.Errorf("got error during execute: %s: %w", out, err)
+		return nil, err
 	}
-	return parseCommits(out), nil
+	return commits, nil
 }
 
-func getCommit(headBranch, baseBranch string) ([]*Commit, error) {
+func getCommits(headBranch, baseBranch string) ([]*Commit, error) {
 	out, err := execOutputErr("git", "log", "--format=format:%H%x00%B%x00",
 		baseBranch+".."+headBranch)
 	if err != nil {
