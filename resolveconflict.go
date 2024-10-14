@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kitimark/dx/pkg/conflictresolver"
+	"github.com/kitimark/dx/pkg/exec"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +51,7 @@ var gitXYConflictedStatuses = []string{"AA", "UU"}
 //
 // ref: https://git-scm.com/docs/git-status#_short_format
 func getConflictedFiles() ([]string, error) {
-	out, err := execOutputErr("git", "status", "--short")
+	out, err := exec.OutputErr("git", "status", "--short")
 	if err != nil {
 		return nil, err
 	}
