@@ -76,12 +76,17 @@ func tmkdir(t *testing.T, dir string) {
 }
 
 func trun(t *testing.T, dir, command string, args ...string) string {
+	out, err := trunErr(t, dir, command, args...)
+	require.NoError(t, err, "got error: "+string(out))
+	return out
+}
+
+func trunErr(t *testing.T, dir, command string, args ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command(command, args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "got error: "+string(out))
-	return string(out)
+	return string(out), err
 }
 
 func twrite(t *testing.T, file, data string) {
@@ -187,6 +192,12 @@ func tgitLog(t *testing.T, dir string, branches ...string) {
 	}
 	out := trun(t, dir, "git", args...)
 	t.Log("git log:\n", out)
+}
+
+func tgitStatus(t *testing.T, dir string) {
+	t.Helper()
+	out := trun(t, dir, "git", "status")
+	t.Log("git status log:\n", out)
 }
 
 func assertNoBranch(t *testing.T, dir, pattern string) {
