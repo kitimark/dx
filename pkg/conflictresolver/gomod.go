@@ -2,13 +2,14 @@ package conflictresolver
 
 import (
 	"fmt"
-	"github.com/kitimark/dx/pkg/exec"
-	"golang.org/x/mod/modfile"
 	"log/slog"
 	"os"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/kitimark/dx/pkg/exec"
+	"golang.org/x/mod/modfile"
 )
 
 type GoModResolver struct{}
