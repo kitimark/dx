@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/kitimark/dx/pkg/exec"
+	"github.com/kitimark/dx/pkg/utils"
 	"golang.org/x/mod/modfile"
 )
 
@@ -129,7 +130,10 @@ func formatGoMod(filename string, b []byte) (string, error) {
 	}
 	syntax := gomod.Syntax
 	requireMods, requireIndirectMods := extractAllRequireMods(gomod)
-	cleanupAllRequireMods(syntax)
+	err = cleanupAllRequireMods(gomod)
+	if err != nil {
+		return "", err
+	}
 	assignRequireMods(syntax, requireMods, false)
 	assignRequireMods(syntax, requireIndirectMods, true)
 
@@ -138,40 +142,23 @@ func formatGoMod(filename string, b []byte) (string, error) {
 	return string(b), nil
 }
 
-func markModLineRemove(l *modfile.Line) {
-	l.Token = nil
-	l.Comments.Suffix = nil
-}
-
-func cleanupAllRequireMods(modSyntax *modfile.FileSyntax) {
-	for _, stmt := range modSyntax.Stmt {
-		switch expr := stmt.(type) {
-		case *modfile.Line:
-			if len(expr.Token) == 0 {
-				continue
-			}
-			if expr.Token[0] == "require" {
-				markModLineRemove(expr)
-			}
-		case *modfile.LineBlock:
-			if len(expr.Token) == 0 {
-				continue
-			}
-			if expr.Token[0] == "require" {
-				for _, l := range expr.Line {
-					markModLineRemove(l)
-				}
-			}
+func cleanupAllRequireMods(gomod *modfile.File) error {
+	for _, req := range gomod.Require {
+		err := gomod.DropRequire(req.Mod.Path)
+		if err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 func extractAllRequireMods(gomod *modfile.File) (requireMods []*modfile.Require, requireIndirectMods []*modfile.Require) {
 	for _, mod := range gomod.Require {
+		c := utils.ShallowPtrCopy(*mod)
 		if mod.Indirect {
-			requireIndirectMods = append(requireIndirectMods, mod)
+			requireIndirectMods = append(requireIndirectMods, c)
 		} else {
-			requireMods = append(requireMods, mod)
+			requireMods = append(requireMods, c)
 		}
 	}
 	return
