@@ -1,12 +1,11 @@
-package dx
+package exec
 
 import (
 	"log/slog"
 	"os/exec"
 )
 
-// Deprecated: use exec.OutputErr instead
-func execOutputErr(command string, args ...string) (string, error) {
+func OutputErr(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 	slog.Debug("exec command", "cmd", cmd.String())
 	b, err := cmd.CombinedOutput()

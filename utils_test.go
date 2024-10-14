@@ -1,14 +1,15 @@
 package dx
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/modfile"
 )
 
 func trunMainCommand(t *testing.T, args ...string) error {
@@ -105,10 +106,15 @@ func tappend(t *testing.T, file string, data string) {
 }
 
 func tread(t *testing.T, file string) string {
+	out := treadbytes(t, file)
+	return string(out)
+}
+
+func treadbytes(t *testing.T, file string) []byte {
 	t.Helper()
 	out, err := os.ReadFile(file)
 	require.NoError(t, err)
-	return string(out)
+	return out
 }
 
 type tcommit struct {
@@ -231,4 +237,15 @@ func removeConflictAnnotate(t *testing.T, content string) string {
 		}
 	}
 	return strings.Join(result, "\n")
+}
+
+func treadGoMod(t *testing.T, file string) *modfile.File {
+	t.Helper()
+	out := treadbytes(t, file)
+	dontFixRetract := func(_, vers string) (string, error) {
+		return vers, nil
+	}
+	gomod, err := modfile.Parse(file, out, dontFixRetract)
+	require.NoError(t, err)
+	return gomod
 }

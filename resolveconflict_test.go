@@ -89,9 +89,7 @@ func main() {
 	assert.NoError(t, err)
 	trun(t, clientDir, "go", "build", "./...")
 	out = tread(t, clientDir+"/go.mod")
-	gomod, err := modfile.Parse("/go.mod", []byte(out), dontFixRetract)
-	assert.NoError(t, err)
-	assert.NotNil(t, gomod)
+	gomod := treadGoMod(t, clientDir+"/go.mod")
 	assert.Equal(t, gomod.Syntax.Stmt[0].(*modfile.Line).Token, []string{"module", "test/go-mod-conflict"})
 
 	requireLineBlock := gomod.Syntax.Stmt[len(gomod.Syntax.Stmt)-2].(*modfile.LineBlock)
