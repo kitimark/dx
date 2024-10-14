@@ -123,17 +123,23 @@ func formatGoMod(filename string, b []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var requireMods []*modfile.Require
-	var requireIndirectMods []*modfile.Require
-	for _, mod := range gomod.Require {
-		if mod.Indirect {
-			requireIndirectMods = append(requireIndirectMods, mod)
-		} else {
-			requireMods = append(requireMods, mod)
-		}
-	}
-	modSyntax := gomod.Syntax
-	// clean up all require mods
+	syntax := gomod.Syntax
+	requireMods, requireIndirectMods := extractAllRequireMods(gomod)
+	cleanupAllRequireMods(syntax)
+	assignRequireMods(syntax, requireMods, false)
+	assignRequireMods(syntax, requireIndirectMods, true)
+
+	syntax.Cleanup()
+	b = modfile.Format(syntax)
+	return string(b), nil
+}
+
+func markModLineRemove(l *modfile.Line) {
+	l.Token = nil
+	l.Comments.Suffix = nil
+}
+
+func cleanupAllRequireMods(modSyntax *modfile.FileSyntax) {
 	for _, stmt := range modSyntax.Stmt {
 		switch expr := stmt.(type) {
 		case *modfile.Line:
@@ -141,8 +147,7 @@ func formatGoMod(filename string, b []byte) (string, error) {
 				continue
 			}
 			if expr.Token[0] == "require" {
-				expr.Token = nil
-				expr.Comments.Suffix = nil
+				markModLineRemove(expr)
 			}
 		case *modfile.LineBlock:
 			if len(expr.Token) == 0 {
@@ -150,44 +155,42 @@ func formatGoMod(filename string, b []byte) (string, error) {
 			}
 			if expr.Token[0] == "require" {
 				for _, l := range expr.Line {
-					l.Token = nil
-					l.Comments.Suffix = nil
+					markModLineRemove(l)
 				}
 			}
 		}
 	}
-	// assign require mods
+}
+
+func extractAllRequireMods(gomod *modfile.File) (requireMods []*modfile.Require, requireIndirectMods []*modfile.Require) {
+	for _, mod := range gomod.Require {
+		if mod.Indirect {
+			requireIndirectMods = append(requireIndirectMods, mod)
+		} else {
+			requireMods = append(requireMods, mod)
+		}
+	}
+	return
+}
+
+func assignRequireMods(modSyntax *modfile.FileSyntax, mods []*modfile.Require, indirect bool) {
 	requireLineBlock := &modfile.LineBlock{
 		Token: []string{"require"},
 	}
-	for _, m := range requireMods {
+	for _, m := range mods {
 		l := &modfile.Line{
 			Token:   []string{m.Mod.Path, m.Mod.Version},
 			InBlock: true,
 		}
-		requireLineBlock.Line = append(requireLineBlock.Line, l)
-	}
-	modSyntax.Stmt = append(modSyntax.Stmt, requireLineBlock)
-
-	requireIndirectLineBlock := &modfile.LineBlock{
-		Token: []string{"require"},
-	}
-	for _, m := range requireIndirectMods {
-		l := &modfile.Line{
-			Comments: modfile.Comments{
+		if indirect {
+			l.Comments = modfile.Comments{
 				Suffix: []modfile.Comment{{
 					Token:  "// indirect",
 					Suffix: true,
 				}},
-			},
-			Token:   []string{m.Mod.Path, m.Mod.Version},
-			InBlock: true,
+			}
 		}
-		requireIndirectLineBlock.Line = append(requireIndirectLineBlock.Line, l)
+		requireLineBlock.Line = append(requireLineBlock.Line, l)
 	}
-	modSyntax.Stmt = append(modSyntax.Stmt, requireIndirectLineBlock)
-
-	modSyntax.Cleanup()
-	b = modfile.Format(modSyntax)
-	return string(b), nil
+	modSyntax.Stmt = append(modSyntax.Stmt, requireLineBlock)
 }
