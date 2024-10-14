@@ -16,6 +16,10 @@ type GoModResolver struct{}
 
 var goModConflictedFileLists = []string{"go.mod", "go.sum"}
 
+func (r *GoModResolver) Name() string {
+	return "go mod"
+}
+
 func (r *GoModResolver) Detect(fileNames []string) bool {
 	for _, f := range fileNames {
 		if slices.Contains(goModConflictedFileLists, f) {

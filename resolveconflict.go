@@ -1,6 +1,8 @@
 package dx
 
 import (
+	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -26,6 +28,7 @@ func cmdResolveConflictRun(cmd *cobra.Command, _ []string) error {
 
 	for _, r := range conflictresolver.ConflictResolvers {
 		if r.Detect(conflictedFiles) {
+			slog.Info(fmt.Sprintf("detect %s conflict, trying to resolve", r.Name()))
 			err = r.Resolve(conflictedFiles)
 			if err != nil {
 				cmd.SilenceUsage = true
