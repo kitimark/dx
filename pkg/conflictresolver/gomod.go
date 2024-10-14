@@ -94,14 +94,14 @@ func resolveGoModConflicted(files []string) error {
 		if err != nil {
 			return err
 		}
-		content := removeConflictAnnotation(string(b))
+		b = removeConflictAnnotation(b)
 		if filename == "go.mod" {
-			content, err = formatGoMod(filename, []byte(content))
+			b, err = formatGoMod(filename, b)
 			if err != nil {
 				return err
 			}
 		}
-		err = os.WriteFile(filename, []byte(content), 0)
+		err = os.WriteFile(filename, b, 0)
 		if err != nil {
 			return err
 		}
@@ -109,37 +109,37 @@ func resolveGoModConflicted(files []string) error {
 	return nil
 }
 
-func removeConflictAnnotation(content string) string {
+func removeConflictAnnotation(b []byte) []byte {
 	var result []string
-	for _, line := range strings.Split(content, "\n") {
+	for _, line := range strings.Split(string(b), "\n") {
 		if !conflictContentPattern.MatchString(line) {
 			result = append(result, line)
 		}
 	}
-	return strings.Join(result, "\n")
+	return []byte(strings.Join(result, "\n"))
 }
 
 var dontFixRetract modfile.VersionFixer = func(_, vers string) (string, error) {
 	return vers, nil
 }
 
-func formatGoMod(filename string, b []byte) (string, error) {
+func formatGoMod(filename string, b []byte) ([]byte, error) {
 	gomod, err := modfile.Parse(filename, b, dontFixRetract)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	syntax := gomod.Syntax
 	requireMods, requireIndirectMods := extractAllRequireMods(gomod)
 	err = cleanupAllRequireMods(gomod)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	assignRequireMods(syntax, requireMods, false)
 	assignRequireMods(syntax, requireIndirectMods, true)
 
 	syntax.Cleanup()
 	b = modfile.Format(syntax)
-	return string(b), nil
+	return b, nil
 }
 
 func cleanupAllRequireMods(gomod *modfile.File) error {
