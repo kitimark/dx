@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kitimark/dx/pkg/exec"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -80,7 +81,7 @@ func cmdSyncRun(cmd *cobra.Command, args []string) error {
 	slog.Info("pending commit", "first", pendingCommitIndex, "last", 0)
 
 	for i := pendingCommitIndex; i >= 0; i-- {
-		out, err := execOutputErr("git", "cherry-pick", s.currentCommits[i].Hash)
+		out, err := exec.OutputErr("git", "cherry-pick", s.currentCommits[i].Hash)
 		if err != nil {
 			if isCodeConflict(out) {
 				fmt.Printf(`CONFLICT: syncing commit to %s
@@ -97,11 +98,11 @@ hint: "dx sync --continue"
 		}
 	}
 
-	_, err = execOutputErr("git", "checkout", s.syncBranch)
+	_, err = exec.OutputErr("git", "checkout", s.syncBranch)
 	if err != nil {
 		return err
 	}
-	_, err = execOutputErr("git", "merge", "--squash", s.tmpSyncBranch.name)
+	_, err = exec.OutputErr("git", "merge", "--squash", s.tmpSyncBranch.name)
 	if err != nil {
 		return err
 	}
@@ -114,7 +115,7 @@ hint: "dx sync --continue"
 		commitLogs += s.currentCommits[i].Message
 		commitLogs += "---\n"
 	}
-	_, err = execOutputErr("git", "commit", "-m", "sync from "+s.currentBranch, "-m", commitLogs)
+	_, err = exec.OutputErr("git", "commit", "-m", "sync from "+s.currentBranch, "-m", commitLogs)
 	if err != nil {
 		return err
 	}
@@ -160,7 +161,7 @@ func prepareSync(args []string) (s *sync, err error) {
 		if s.tdOpts.ignoreSwitchBranchBack {
 			return
 		}
-		out, err := execOutputErr("git", "checkout", s.currentBranch)
+		out, err := exec.OutputErr("git", "checkout", s.currentBranch)
 		if err != nil {
 			slog.Warn("cannot checkout branch", "branch", s.currentBranch, "output", out, "error", err)
 		}
@@ -215,14 +216,14 @@ func prepareContinueSync() (s *sync, err error) {
 		if s.tdOpts.ignoreSwitchBranchBack {
 			return
 		}
-		out, err := execOutputErr("git", "checkout", s.currentBranch)
+		out, err := exec.OutputErr("git", "checkout", s.currentBranch)
 		if err != nil {
 			slog.Warn("cannot checkout branch", "branch", s.currentBranch, "output", out, "error", err)
 		}
 	})
 
 	slog.Info("continue syncing branch", "branch_to", s.syncBranch, "branch_from", s.currentBranch)
-	_, err = execOutputErr("git", "-c", "core.editor=true", "cherry-pick", "--continue")
+	_, err = exec.OutputErr("git", "-c", "core.editor=true", "cherry-pick", "--continue")
 	if err != nil {
 		return
 	}
@@ -244,7 +245,7 @@ func prepareContinueSync() (s *sync, err error) {
 }
 
 func getCurrentBranchName() (string, error) {
-	currentBranchName, err := execOutputErr("git", "rev-parse", "--abbrev-ref", "HEAD")
+	currentBranchName, err := exec.OutputErr("git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -257,19 +258,19 @@ func resetBranchFromOrigin(syncBranch string) error {
 	if err != nil {
 		return nil
 	}
-	_, err = execOutputErr("git", "fetch")
+	_, err = exec.OutputErr("git", "fetch")
 	if err != nil {
 		return err
 	}
-	_, err = execOutputErr("git", "checkout", syncBranch)
+	_, err = exec.OutputErr("git", "checkout", syncBranch)
 	if err != nil {
 		return err
 	}
-	_, err = execOutputErr("git", "reset", "--hard", "origin/"+syncBranch)
+	_, err = exec.OutputErr("git", "reset", "--hard", "origin/"+syncBranch)
 	if err != nil {
 		return err
 	}
-	_, err = execOutputErr("git", "checkout", currentBranch)
+	_, err = exec.OutputErr("git", "checkout", currentBranch)
 	if err != nil {
 		return err
 	}
@@ -285,7 +286,7 @@ func getCommitsFromMainToBranchName(branchName string) ([]*Commit, error) {
 }
 
 func getCommits(headBranch, baseBranch string) ([]*Commit, error) {
-	out, err := execOutputErr("git", "log", "--format=format:%H%x00%B%x00",
+	out, err := exec.OutputErr("git", "log", "--format=format:%H%x00%B%x00",
 		baseBranch+".."+headBranch)
 	if err != nil {
 		return nil, fmt.Errorf("got error during execute: %s: %w", out, err)
@@ -327,7 +328,7 @@ func newTempSyncBranch(from, to string) (*tmpSyncBranch, error) {
 		from: from,
 		to:   to,
 	}
-	_, err := execOutputErr("git", "checkout", "-b", b.name, to)
+	_, err := exec.OutputErr("git", "checkout", "-b", b.name, to)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +359,7 @@ func (b *tmpSyncBranch) cleanup() {
 	if b.ignoreCleanup {
 		return
 	}
-	_, err := execOutputErr("git", "branch", "-D", b.name)
+	_, err := exec.OutputErr("git", "branch", "-D", b.name)
 	if err != nil {
 		slog.Warn("error during remove sync branch", "err", err)
 	}
