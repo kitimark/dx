@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0](https://github.com/kitimark/dx/compare/v0.0.1...v0.1.0) (2024-10-15)
+
+
+### Features
+
+* **dx:** auto resolve conflict cmd ([#14](https://github.com/kitimark/dx/issues/14)) ([3dc59d7](https://github.com/kitimark/dx/commit/3dc59d72f43c753f63b57cfefac6135c36d7862e))
+* **resolve-conflict:** auto resolve conflict of go mod/sum ([3dc59d7](https://github.com/kitimark/dx/commit/3dc59d72f43c753f63b57cfefac6135c36d7862e))
+* **version:** get version cmd ([#12](https://github.com/kitimark/dx/issues/12)) ([6bd91b3](https://github.com/kitimark/dx/commit/6bd91b372272285a6ae6d9ddcd1dc591c7ab5b15))
+
 ## 0.0.1 (2024-10-12)
 
 
