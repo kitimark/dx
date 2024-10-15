@@ -6,6 +6,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	go.mongodb.org/mongo-driver/v2 v2.0.0-beta2
+	golang.org/x/mod v0.21.0
 )
 
 require (

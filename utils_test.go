@@ -1,14 +1,15 @@
 package dx
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/modfile"
 )
 
 func trunMainCommand(t *testing.T, args ...string) error {
@@ -76,12 +77,17 @@ func tmkdir(t *testing.T, dir string) {
 }
 
 func trun(t *testing.T, dir, command string, args ...string) string {
+	out, err := trunErr(t, dir, command, args...)
+	require.NoError(t, err, "got error: "+string(out))
+	return out
+}
+
+func trunErr(t *testing.T, dir, command string, args ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command(command, args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "got error: "+string(out))
-	return string(out)
+	return string(out), err
 }
 
 func twrite(t *testing.T, file, data string) {
@@ -100,10 +106,15 @@ func tappend(t *testing.T, file string, data string) {
 }
 
 func tread(t *testing.T, file string) string {
+	out := treadbytes(t, file)
+	return string(out)
+}
+
+func treadbytes(t *testing.T, file string) []byte {
 	t.Helper()
 	out, err := os.ReadFile(file)
 	require.NoError(t, err)
-	return string(out)
+	return out
 }
 
 type tcommit struct {
@@ -189,6 +200,12 @@ func tgitLog(t *testing.T, dir string, branches ...string) {
 	t.Log("git log:\n", out)
 }
 
+func tgitStatus(t *testing.T, dir string) {
+	t.Helper()
+	out := trun(t, dir, "git", "status")
+	t.Log("git status log:\n", out)
+}
+
 func assertNoBranch(t *testing.T, dir, pattern string) {
 	t.Helper()
 	out := tgetBranchList(t, dir, pattern)
@@ -220,4 +237,15 @@ func removeConflictAnnotate(t *testing.T, content string) string {
 		}
 	}
 	return strings.Join(result, "\n")
+}
+
+func treadGoMod(t *testing.T, file string) *modfile.File {
+	t.Helper()
+	out := treadbytes(t, file)
+	dontFixRetract := func(_, vers string) (string, error) {
+		return vers, nil
+	}
+	gomod, err := modfile.Parse(file, out, dontFixRetract)
+	require.NoError(t, err)
+	return gomod
 }

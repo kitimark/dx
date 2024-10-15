@@ -17,6 +17,7 @@ func NewMainCmd() *cobra.Command {
 	cmd.AddCommand(NewCommitCmd())
 	cmd.AddCommand(NewSyncCmd())
 	cmd.AddCommand(NewVersionCmd())
+	cmd.AddCommand(NewResolveConflictCmd())
 
 	return cmd
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/kitimark/dx/pkg/exec"
 )
 
 var mainBranchName string
@@ -12,7 +14,7 @@ var defaultMainBranchName = []string{"master", "main"}
 func gitInit() error {
 	args := append([]string{"branch", "--list"}, defaultMainBranchName...)
 	args = append(args, "--format", "%(refname:short)")
-	branches, err := execOutputErr("git", args...)
+	branches, err := exec.OutputErr("git", args...)
 	if err != nil {
 		return fmt.Errorf("error during get branch: %w", err)
 	}

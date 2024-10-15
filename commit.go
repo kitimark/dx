@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kitimark/dx/pkg/exec"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -35,6 +36,6 @@ func cmdCommitRun(cmd *cobra.Command, _ []string) error {
 	changeId := bson.NewObjectID().Hex()
 	changeIdMessage := fmt.Sprintf("change-id: %s", changeId)
 	args := []string{"commit", "-m", message, "-m", changeIdMessage}
-	_, err = execOutputErr("git", args...)
+	_, err = exec.OutputErr("git", args...)
 	return err
 }
