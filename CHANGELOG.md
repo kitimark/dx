@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/kitimark/dx/compare/v0.1.0...v0.2.0) (2024-10-23)
+
+
+### Features
+
+* **resolveconflict:** yarn lock resolver ([#16](https://github.com/kitimark/dx/issues/16)) ([66eab53](https://github.com/kitimark/dx/commit/66eab53ba9dc6c9d470329a9550073794a59157c))
+
 ## [0.1.0](https://github.com/kitimark/dx/compare/v0.0.1...v0.1.0) (2024-10-15)
 
 
