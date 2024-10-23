@@ -227,12 +227,21 @@ func assertNormalTeardown(t *testing.T, dir string) {
 	assertNoBranch(t, dir, "tmp-sync*")
 }
 
+var conflictRegex = regexp.MustCompile("(<<<<<<<|=======|>>>>>>>)(.*)")
+
+func assertConflictContent(t *testing.T, content string) {
+	assert.Regexp(t, conflictRegex, content)
+}
+
+func assertNoConflictContent(t *testing.T, content string) {
+	assert.NotRegexp(t, conflictRegex, content)
+}
+
 func removeConflictAnnotate(t *testing.T, content string) string {
 	t.Helper()
-	re := regexp.MustCompile("(<<<<<<<|=======|>>>>>>>)(.*)")
 	var result []string
 	for _, line := range strings.Split(content, "\n") {
-		if !re.MatchString(line) {
+		if !conflictRegex.MatchString(line) {
 			result = append(result, line)
 		}
 	}
