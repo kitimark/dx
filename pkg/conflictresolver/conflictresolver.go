@@ -8,4 +8,5 @@ type ConflictResolver interface {
 
 var ConflictResolvers = []ConflictResolver{
 	&GoModResolver{},
+	&YarnLockResolver{},
 }

@@ -42,7 +42,7 @@ func main() {
 `)
 	trun(t, clientDir, "go", "mod", "tidy")
 	trun(t, clientDir, "git", "add", ".")
-	trun(t, serverDir, "go", "build", "./...")
+	trun(t, clientDir, "go", "build", "./...")
 	trun(t, clientDir, "git", "commit", "-m", "print with cowsay")
 
 	t.Log("server - implement main")
@@ -101,4 +101,67 @@ func main() {
 	for _, l := range indirectRequireLineBlock.Line {
 		assert.Equal(t, l.Suffix[0].Token, "// indirect")
 	}
+}
+
+func TestResolveConflict_YarnLockConflict(t *testing.T) {
+	serverDir, clientDir := newGitTest(t)
+
+	t.Log("server - init nodejs project with yarn")
+	trun(t, serverDir, "git", "checkout", "dev")
+	trun(t, serverDir, "yarn", "init", "-y")
+	twrite(t, serverDir+"/.gitignore", "node_modules")
+	trun(t, serverDir, "git", "add", ".")
+	trun(t, serverDir, "git", "commit", "-m", "init go project")
+	trun(t, serverDir, "git", "checkout", "main")
+
+	t.Log("client - fetch dev branch")
+	trun(t, clientDir, "git", "fetch")
+	trun(t, clientDir, "git", "checkout", "dev")
+	trun(t, clientDir, "git", "pull", "origin", "dev")
+
+	t.Log("client - add dependencies")
+	trun(t, clientDir, "yarn", "add", "express@4.21.1")
+	trun(t, clientDir, "git", "add", ".")
+	trun(t, clientDir, "git", "commit", "-m", "add express")
+
+	t.Log("server - add more dependencies")
+	trun(t, serverDir, "git", "checkout", "dev")
+	trun(t, serverDir, "yarn", "add", "--dev", "jest@29.7.0")
+	trun(t, serverDir, "git", "add", ".")
+	trun(t, serverDir, "git", "commit", "-m", "add jest")
+	trun(t, serverDir, "git", "checkout", "main")
+
+	t.Log("client - pull rebase dev branch")
+	trun(t, clientDir, "git", "fetch")
+	tgitLog(t, clientDir, "main", "dev", "origin/dev")
+	_, err := trunErr(t, clientDir, "git", "pull", "-r", "origin", "dev")
+	require.Error(t, err)
+	packagejson := tread(t, clientDir+"/package.json")
+	yarnlock := tread(t, clientDir+"/yarn.lock")
+	assertConflictContent(t, packagejson)
+	assertConflictContent(t, yarnlock)
+
+	t.Log("client - run dx resolve-conflict")
+	err = trunMainCommand(t, "--debug", "resolve-conflict")
+	require.Error(t, err, "package.json must still conflicted")
+
+	twrite(t, clientDir+"/package.json", `{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "tester <tester@example.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "29.7.0"
+  },
+  "dependencies": {
+    "express": "4.21.1"
+  }
+}
+`)
+
+	err = trunMainCommand(t, "--debug", "resolve-conflict")
+	assert.NoError(t, err)
+	yarnlock = tread(t, clientDir+"/yarn.lock")
+	assertNoConflictContent(t, yarnlock)
 }
