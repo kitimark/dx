@@ -144,6 +144,13 @@ func formatGoMod(filename string, b []byte) ([]byte, error) {
 
 func cleanupAllRequireMods(gomod *modfile.File) error {
 	for _, req := range gomod.Require {
+		// when go.mod has conflict. it might have a multiple module
+		// that's same Path but difference Version
+		// in the drop require if we drop the same path before
+		// it will be empty path in the same module. we have to ignore this drop
+		if req.Mod.Path == "" {
+			continue
+		}
 		err := gomod.DropRequire(req.Mod.Path)
 		if err != nil {
 			return err
