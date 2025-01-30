@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// issue from fleet-bff reslove go.mod conflict files
-func TestFormatGoMod(t *testing.T) {
+func TestIssuePanicWhenGoModConflictWithTheSameMods(t *testing.T) {
 	f, err := os.ReadFile("./fixtures/issue_conflict_same_mods/go.mod")
 	require.NoError(t, err)
 	f = removeConflictAnnotation(f)
