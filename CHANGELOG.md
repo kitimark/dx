@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/kitimark/dx/compare/v0.2.0...v0.2.1) (2025-01-30)
+
+
+### Bug Fixes
+
+* **conflictresolver:** panic when gomod is conflict with the same mods ([#18](https://github.com/kitimark/dx/issues/18)) ([cbf8ca7](https://github.com/kitimark/dx/commit/cbf8ca7439f06ace4b5f0c3b5851be6506ae92a8))
+
 ## [0.2.0](https://github.com/kitimark/dx/compare/v0.1.0...v0.2.0) (2024-10-23)
 
 
